@@ -120,6 +120,63 @@
             border-radius: 12px;
         }
         .hidden { display: none; }
+
+        /* ===== КАЛЕНДАРЬ ===== */
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 20px;
+        }
+        .cal-head {
+            font-weight: 600;
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.8em;
+            padding: 4px 0;
+        }
+        .cal-cell {
+            background: var(--card-bg);
+            border-radius: 8px;
+            min-height: 62px;
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+        .cal-cell.empty { background: transparent; box-shadow: none; cursor: default; }
+        .cal-cell.sun { background: #fef2f2; }
+        .cal-day { font-size: 0.8em; font-weight: 600; color: #374151; }
+        .cal-cell.sun .cal-day { color: #ef4444; }
+        .cal-chip {
+            font-size: 0.62em;
+            font-weight: 700;
+            color: #fff;
+            border-radius: 4px;
+            padding: 1px 3px;
+            text-align: center;
+        }
+        .cal-lecrow { display: flex; gap: 3px; margin-top: auto; padding-top: 2px; }
+        .cal-lec {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--lec);
+            display: inline-block;
+        }
+        .cal-holiday { font-size: 0.9em; text-align: center; }
+        .legend {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .legend-title { font-weight: 700; margin-bottom: 10px; color: #4b5563; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.9em; }
+        .legend-item .cal-chip { min-width: 44px; }
+        .legend-hint { margin-top: 10px; font-size: 0.85em; color: #9ca3af; }
     </style>
 </head>
 <body>
@@ -134,6 +191,7 @@
         <button class="tab-btn" onclick="setView('today')" id="btn-today">Сегодня</button>
         <button class="tab-btn" onclick="setView('week')" id="btn-week">Неделя</button>
         <button class="tab-btn" onclick="setView('date')" id="btn-date">Дата</button>
+        <button class="tab-btn" onclick="setView('cal')" id="btn-cal">Календарь</button>
         <button class="tab-btn" onclick="setView('all')" id="btn-all">Всё расписание</button>
     </div>
 
@@ -146,6 +204,12 @@
     <div class="nav-controls hidden" id="date-nav">
         <label for="date-input" style="font-weight: 600;">Выберите дату:</label>
         <input type="date" id="date-input" onchange="updateDisplay()">
+    </div>
+
+    <div class="nav-controls hidden" id="cal-nav">
+        <button class="nav-btn" onclick="changeMonth(-1)">← Пред. месяц</button>
+        <span id="cal-label" style="font-weight: bold; text-transform: capitalize;"></span>
+        <button class="nav-btn" onclick="changeMonth(1)">След. месяц →</button>
     </div>
 
     <div id="schedule-container"></div>
@@ -184,11 +248,34 @@
         { subj: "Акушерство и гинекология", start: "14.12", end: "16.01" }
     ];
 
+    // Сокращения и цвета для календаря
+    const subjShort = {
+        "Урология": "УРОЛ",
+        "Факультетская терапия": "ФТ",
+        "Оказание первой врачебной помощи": "ОПВП",
+        "Дерматология": "ДЕРМ",
+        "Неврология": "НЕВР",
+        "Факультетская хирургия": "ФХ",
+        "Офтальмология": "ОФТ",
+        "Акушерство и гинекология": "АКУШ"
+    };
+    const subjColor = {
+        "Урология": "#10b981",
+        "Факультетская терапия": "#f59e0b",
+        "Оказание первой врачебной помощи": "#ef4444",
+        "Дерматология": "#8b5cf6",
+        "Неврология": "#0ea5e9",
+        "Факультетская хирургия": "#14b8a6",
+        "Офтальмология": "#6366f1",
+        "Акушерство и гинекология": "#ec4899"
+    };
+
     // ============ ЛОГИКА ============
 
     let scheduleData = [];
     let currentView = 'all';
     let currentMonday = getMonday(new Date());
+    let calCursor = new Date(2026, 8, 1); // календарь открыт на сентябре 2026
 
     function parseDate(dStr) {
         const [d, m] = dStr.split('.');
@@ -208,8 +295,8 @@
 
     // НОВОГОДНИЕ ПРАЗДНИКИ — занятий нет (31.12.2026 – 10.01.2027)
     function isHoliday(date) {
-        const start = new Date(2026, 11, 31); // 31 декабря 2026
-        const end   = new Date(2027, 0, 10);  // 10 января 2027
+        const start = new Date(2026, 11, 31);
+        const end   = new Date(2027, 0, 10);
         return date >= start && date <= end;
     }
 
@@ -373,19 +460,117 @@
             `${mondayDate.toLocaleDateString('ru-RU')} — ${sunday.toLocaleDateString('ru-RU')}`;
     }
 
+    // ===== КАЛЕНДАРЬ НА МЕСЯЦ =====
+    function changeMonth(offset) {
+        calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + offset, 1);
+        updateDisplay();
+    }
+
+    function renderCalendar() {
+        const container = document.getElementById('schedule-container');
+        container.innerHTML = '';
+
+        const y = calCursor.getFullYear();
+        const m = calCursor.getMonth();
+
+        document.getElementById('cal-label').innerText =
+            calCursor.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+
+        const grid = document.createElement('div');
+        grid.className = 'cal-grid';
+
+        ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(h => {
+            const hd = document.createElement('div');
+            hd.className = 'cal-head';
+            hd.innerText = h;
+            grid.appendChild(hd);
+        });
+
+        // Пустые клетки до 1-го числа
+        let offset = new Date(y, m, 1).getDay() - 1;
+        if (offset < 0) offset = 6;
+        for (let i = 0; i < offset; i++) {
+            const empty = document.createElement('div');
+            empty.className = 'cal-cell empty';
+            grid.appendChild(empty);
+        }
+
+        const daysInMonth = new Date(y, m + 1, 0).getDate();
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(y, m, d);
+            const cell = document.createElement('div');
+            cell.className = 'cal-cell';
+            if (date.getDay() === 0) cell.classList.add('sun');
+
+            const dayNum = document.createElement('div');
+            dayNum.className = 'cal-day';
+            dayNum.innerText = d;
+            cell.appendChild(dayNum);
+
+            if (isHoliday(date)) {
+                const hol = document.createElement('div');
+                hol.className = 'cal-holiday';
+                hol.innerText = '🎄';
+                cell.appendChild(hol);
+            } else {
+                const events = getEventsForDate(date);
+                events.filter(e => e.type === 'Практика').forEach(p => {
+                    const chip = document.createElement('div');
+                    chip.className = 'cal-chip';
+                    chip.style.background = subjColor[p.title] || '#10b981';
+                    chip.innerText = subjShort[p.title] || p.title;
+                    cell.appendChild(chip);
+                });
+                const lecs = events.filter(e => e.type === 'Лекция');
+                if (lecs.length > 0) {
+                    const row = document.createElement('div');
+                    row.className = 'cal-lecrow';
+                    lecs.forEach(() => {
+                        const dot = document.createElement('span');
+                        dot.className = 'cal-lec';
+                        row.appendChild(dot);
+                    });
+                    cell.appendChild(row);
+                }
+            }
+
+            // Клик по дню — открыть подробности
+            cell.onclick = () => {
+                document.getElementById('date-input').value = formatDateInput(date);
+                setView('date');
+            };
+
+            grid.appendChild(cell);
+        }
+
+        container.appendChild(grid);
+
+        // Легенда
+        const legend = document.createElement('div');
+        legend.className = 'legend';
+        let legendHtml = '<div class="legend-title">Условные обозначения:</div>';
+        practicalsRaw.forEach(p => {
+            legendHtml += `<div class="legend-item"><span class="cal-chip" style="background:${subjColor[p.subj]}">${subjShort[p.subj]}</span> ${p.subj}</div>`;
+        });
+        legendHtml += '<div class="legend-item"><span class="cal-lec"></span> Лекция (сколько точек — столько лекций)</div>';
+        legendHtml += '<div class="legend-item">🎄 Новогодние праздники</div>';
+        legendHtml += '<div class="legend-item" style="color:#ef4444;">Воскресенье — выходной</div>';
+        legendHtml += '<div class="legend-hint">Нажмите на любой день, чтобы открыть подробное расписание</div>';
+        legend.innerHTML = legendHtml;
+        container.appendChild(legend);
+    }
+
     function renderAll() {
         const container = document.getElementById('schedule-container');
         container.innerHTML = '';
 
-        // Идём день за днём по всему семестру,
-        // чтобы практика отображалась в КАЖДЫЙ день цикла
         const start = new Date(2026, 8, 1);   // 1 сентября 2026
         const end   = new Date(2027, 0, 16);  // 16 января 2027
 
         const months = {};
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const day = new Date(d);
-            const events = getEventsForDate(day); // воскресенья и праздники уже исключены
+            const events = getEventsForDate(day);
             if (events.length === 0) continue;
 
             const key = day.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
@@ -410,6 +595,7 @@
 
         document.getElementById('week-nav').classList.toggle('hidden', view !== 'week');
         document.getElementById('date-nav').classList.toggle('hidden', view !== 'date');
+        document.getElementById('cal-nav').classList.toggle('hidden', view !== 'cal');
 
         updateDisplay();
     }
@@ -423,6 +609,7 @@
         if (currentView === 'today') renderToday();
         else if (currentView === 'week') renderWeek(currentMonday);
         else if (currentView === 'date') renderCustomDate();
+        else if (currentView === 'cal') renderCalendar();
         else if (currentView === 'all') renderAll();
     }
 

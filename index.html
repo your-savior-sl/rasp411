@@ -147,9 +147,9 @@
             box-shadow: 0 1px 2px rgba(0,0,0,0.08);
         }
         .cal-cell.empty { background: transparent; box-shadow: none; cursor: default; }
-        .cal-cell.sun { background: #fef2f2; }
+        .cal-cell.sun, .cal-cell.sat { background: #fef2f2; }
         .cal-day { font-size: 0.8em; font-weight: 600; color: #374151; }
-        .cal-cell.sun .cal-day { color: #ef4444; }
+        .cal-cell.sun .cal-day, .cal-cell.sat .cal-day { color: #ef4444; }
         .cal-chip {
             font-size: 0.62em;
             font-weight: 700;
@@ -338,8 +338,9 @@
     }
 
     function getEventsForDate(date) {
-        // ВОСКРЕСЕНЬЕ — выходной, занятий нет
-        if (date.getDay() === 0) {
+        // СУББОТА и ВОСКРЕСЕНЬЕ — выходные, занятий нет
+        const wd = date.getDay();
+        if (wd === 0 || wd === 6) {
             return [];
         }
         // НОВОГОДНИЕ ПРАЗДНИКИ — занятий нет
@@ -396,6 +397,7 @@
 
     function emptyMessage(date) {
         if (isHoliday(date)) return 'Новогодние праздники — занятий нет 🎄';
+        if (date.getDay() === 6) return 'Суббота — выходной 🎉';
         if (date.getDay() === 0) return 'Воскресенье — выходной 🎉';
         return 'Занятий нет 🎉';
     }
@@ -501,6 +503,7 @@
             const cell = document.createElement('div');
             cell.className = 'cal-cell';
             if (date.getDay() === 0) cell.classList.add('sun');
+            if (date.getDay() === 6) cell.classList.add('sat');
 
             const dayNum = document.createElement('div');
             dayNum.className = 'cal-day';
@@ -554,7 +557,7 @@
         });
         legendHtml += '<div class="legend-item"><span class="cal-lec"></span> Лекция (сколько точек — столько лекций)</div>';
         legendHtml += '<div class="legend-item">🎄 Новогодние праздники</div>';
-        legendHtml += '<div class="legend-item" style="color:#ef4444;">Воскресенье — выходной</div>';
+        legendHtml += '<div class="legend-item" style="color:#ef4444;">Суббота и воскресенье — выходные</div>';
         legendHtml += '<div class="legend-hint">Нажмите на любой день, чтобы открыть подробное расписание</div>';
         legend.innerHTML = legendHtml;
         container.appendChild(legend);

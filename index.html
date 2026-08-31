@@ -110,6 +110,8 @@
         .badge.prac { background: var(--prac); }
         .title { font-weight: 500; font-size: 1.05em; }
         .location { font-size: 0.85em; color: #9ca3af; margin-top: 2px; }
+        .timeinfo { font-size: 0.85em; color: #059669; font-weight: 600; margin-top: 2px; }
+        .note { font-size: 0.85em; color: #d97706; font-weight: 600; margin-top: 2px; }
         .empty-state {
             text-align: center;
             padding: 40px;
@@ -166,12 +168,18 @@
 
     // ПРАКТИЧЕСКИЕ ЦИКЛЫ (группа 411) — официальные даты
     const practicalsRaw = [
-        { subj: "Урология", start: "01.09", end: "19.09" },
+        { subj: "Урология", start: "01.09", end: "19.09",
+          place: "СЗОНКЦ им. Л.Г. Соколова (пр. Луначарского, 49)",
+          teacher: "Куренков Александр Викторович",
+          timeInfo: "🕘 Начало занятий в 9:30" },
         { subj: "Факультетская терапия", start: "21.09", end: "10.10" },
         { subj: "Оказание первой врачебной помощи", start: "12.10", end: "17.10" },
         { subj: "Дерматология", start: "19.10", end: "31.10" },
         { subj: "Неврология", start: "02.11", end: "14.11" },
-        { subj: "Факультетская хирургия", start: "16.11", end: "25.11" },
+        { subj: "Факультетская хирургия", start: "16.11", end: "25.11",
+          place: "НИИ Скорой помощи им. И.И. Джанелидзе",
+          teacher: "Ульянов Юрий Николаевич",
+          note: "⏰ Время занятий уточняется" },
         { subj: "Офтальмология", start: "26.11", end: "12.12" },
         { subj: "Акушерство и гинекология", start: "14.12", end: "16.01" }
     ];
@@ -225,7 +233,10 @@
                 time: "Практика (цикл)",
                 start: parseDate(p.start),
                 end: parseDate(p.end),
-                location: "По расписанию кафедр"
+                location: p.place || "По расписанию кафедр",
+                teacher: p.teacher || null,
+                timeInfo: p.timeInfo || null,
+                note: p.note || null
             });
         });
 
@@ -270,12 +281,18 @@
         div.className = 'event';
         const badgeClass = e.type === 'Лекция' ? 'lec' : 'prac';
         const timeText = e.type === 'Лекция' ? e.time : (fmtShort(e.start) + ' – ' + fmtShort(e.end));
+        const teacherHtml = e.teacher ? `<div class="location">Преподаватель: ${e.teacher}</div>` : '';
+        const timeInfoHtml = e.timeInfo ? `<div class="timeinfo">${e.timeInfo}</div>` : '';
+        const noteHtml = e.note ? `<div class="note">${e.note}</div>` : '';
         div.innerHTML = `
             <div class="time">${timeText}</div>
             <div>
                 <span class="badge ${badgeClass}">${e.type}</span>
                 <div class="title">${e.title}</div>
                 <div class="location">${e.location}</div>
+                ${teacherHtml}
+                ${timeInfoHtml}
+                ${noteHtml}
             </div>
         `;
         return div;
@@ -303,7 +320,7 @@
         container.innerHTML = '';
 
         if (events.length === 0) {
-            container.innerHTML = `<div class="empty-state">Сегодня: ${emptyMessage(today).charAt(0).toLowerCase() + emptyMessage(today).slice(1)}</div>`;
+            container.innerHTML = `<div class="empty-state">${emptyMessage(today)}</div>`;
             return;
         }
         container.appendChild(renderDayCard(today, events));
@@ -416,4 +433,4 @@
 </script>
 
 </body>
-  </html>
+</html>

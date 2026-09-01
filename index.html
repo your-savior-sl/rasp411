@@ -167,6 +167,7 @@
             display: inline-block;
         }
         .cal-holiday { font-size: 0.9em; text-align: center; }
+        .cal-mark { font-size: 0.7em; text-align: right; }
         .legend {
             background: var(--card-bg);
             border-radius: 12px;
@@ -248,6 +249,21 @@
           teacher: "Баранов Андрей Юрьевич" },
         { subj: "Акушерство и гинекология", start: "14.12", end: "16.01" }
     ];
+
+    // ИСКЛЮЧЕНИЯ ДЛЯ КОНКРЕТНЫХ ДАТ (перекрывают обычное время/место цикла)
+    // mark: true — поставить ❗ в календаре
+    const exceptions = {
+        "02.09": {
+            subj: "Урология",
+            timeInfo: "🕘 Начало в 9:15 (адрес тот же)"
+        },
+        "04.09": {
+            subj: "Урология",
+            location: "🚇 Сбор в 9:00 у метро Чкаловская (снаружи)",
+            timeInfo: "🕙 Занятие до 10:55 — только в этот день!",
+            mark: true
+        }
+    };
 
     // Сокращения и цвета для календаря
     const subjShort = {
@@ -365,20 +381,36 @@
         return practicals.concat(lectures);
     }
 
-    function createEventEl(e) {
+    function createEventEl(e, date) {
         const div = document.createElement('div');
         div.className = 'event';
         const badgeClass = e.type === 'Лекция' ? 'lec' : 'prac';
         const timeText = e.type === 'Лекция' ? e.time : (fmtShort(e.start) + ' – ' + fmtShort(e.end));
+
+        // Обычные место/время/преподаватель
+        let location = e.location;
+        let timeInfo = e.timeInfo;
+        let note = e.note;
+
+        // Если для этой даты есть исключение по этому предмету — подменяем
+        if (date && e.type === 'Практика') {
+            const ex = exceptions[fmtShort(date)];
+            if (ex && ex.subj === e.title) {
+                if (ex.location) location = ex.location;
+                if (ex.timeInfo) timeInfo = ex.timeInfo;
+                if (ex.note) note = ex.note;
+            }
+        }
+
         const teacherHtml = e.teacher ? `<div class="location">Преподаватель: ${e.teacher}</div>` : '';
-        const timeInfoHtml = e.timeInfo ? `<div class="timeinfo">${e.timeInfo}</div>` : '';
-        const noteHtml = e.note ? `<div class="note">${e.note}</div>` : '';
+        const timeInfoHtml = timeInfo ? `<div class="timeinfo">${timeInfo}</div>` : '';
+        const noteHtml = note ? `<div class="note">${note}</div>` : '';
         div.innerHTML = `
             <div class="time">${timeText}</div>
             <div>
                 <span class="badge ${badgeClass}">${e.type}</span>
                 <div class="title">${e.title}</div>
-                <div class="location">${e.location}</div>
+                <div class="location">${location}</div>
                 ${teacherHtml}
                 ${timeInfoHtml}
                 ${noteHtml}
@@ -392,7 +424,7 @@
         card.className = 'day-card';
         const dateStr = date.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
         card.innerHTML = `<div class="day-header">${dateStr}</div>`;
-        events.forEach(e => card.appendChild(createEventEl(e)));
+        events.forEach(e => card.appendChild(createEventEl(e, date)));
         return card;
     }
 
@@ -511,6 +543,15 @@
             dayNum.innerText = d;
             cell.appendChild(dayNum);
 
+            // ❗ — только если у исключения стоит mark: true
+            const ex = exceptions[fmtShort(date)];
+            if (ex && ex.mark) {
+                const mark = document.createElement('div');
+                mark.className = 'cal-mark';
+                mark.innerText = '❗';
+                cell.appendChild(mark);
+            }
+
             if (isHoliday(date)) {
                 const hol = document.createElement('div');
                 hol.className = 'cal-holiday';
@@ -557,6 +598,7 @@
             legendHtml += `<div class="legend-item"><span class="cal-chip" style="background:${subjColor[p.subj]}">${subjShort[p.subj]}</span> ${p.subj}</div>`;
         });
         legendHtml += '<div class="legend-item"><span class="cal-lec"></span> Лекция (сколько точек — столько лекций)</div>';
+        legendHtml += '<div class="legend-item">❗ Особое время или место — нажмите на день, чтобы посмотреть</div>';
         legendHtml += '<div class="legend-item">🎄 Новогодние праздники</div>';
         legendHtml += '<div class="legend-item" style="color:#ef4444;">Суббота и воскресенье — выходные</div>';
         legendHtml += '<div class="legend-hint">Нажмите на любой день, чтобы открыть подробное расписание</div>';

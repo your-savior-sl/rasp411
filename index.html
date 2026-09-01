@@ -112,6 +112,13 @@
         .location { font-size: 0.85em; color: #9ca3af; margin-top: 2px; }
         .timeinfo { font-size: 0.85em; color: #059669; font-weight: 600; margin-top: 2px; }
         .note { font-size: 0.85em; color: #d97706; font-weight: 600; margin-top: 2px; }
+        .hl {
+            background: #fde68a;
+            color: #92400e;
+            padding: 0 5px;
+            border-radius: 4px;
+            font-weight: 800;
+        }
         .empty-state {
             text-align: center;
             padding: 40px;
@@ -255,12 +262,13 @@
     const exceptions = {
         "02.09": {
             subj: "Урология",
-            timeInfo: "🕘 Начало в 9:15 (адрес тот же)"
+            timeInfo: "🕘 Начало в 9:15"
         },
         "04.09": {
             subj: "Урология",
-            location: "🚇 Сбор в 9:00 у метро Чкаловская (снаружи)",
-            timeInfo: "🕙 Занятие до 10:55 — только в этот день!",
+            location: "🚇 метро Чкаловская (снаружи)",
+            timeInfo: '🕘 Встреча в <span class="hl">9:00</span>',
+            note: "🕙 Занятие до 10:55 — только в этот день!",
             mark: true
         }
     };

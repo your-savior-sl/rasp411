@@ -302,7 +302,7 @@
     // ============ ЛОГИКА ============
 
     let scheduleData = [];
-    let currentView = 'all';
+    let currentView = 'today';
     let currentMonday = getMonday(new Date());
     let calCursor = new Date(2026, 8, 1); // календарь открыт на сентябре 2026
 
@@ -671,10 +671,10 @@
         else if (currentView === 'all') renderAll();
     }
 
-    // Запуск
+    // Запуск: открываем вкладку "Сегодня"
     initSchedule();
     document.getElementById('date-input').value = formatDateInput(new Date());
-    setView('all');
+    setView('today');
 </script>
 
 </body>

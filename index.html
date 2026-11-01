@@ -119,6 +119,12 @@
             border-radius: 4px;
             font-weight: 800;
         }
+        .day-off {
+            text-align: center;
+            color: #ef4444;
+            font-weight: 600;
+            padding: 6px 0;
+        }
         .empty-state {
             text-align: center;
             padding: 40px;
@@ -154,9 +160,9 @@
             box-shadow: 0 1px 2px rgba(0,0,0,0.08);
         }
         .cal-cell.empty { background: transparent; box-shadow: none; cursor: default; }
-        .cal-cell.sun, .cal-cell.sat { background: #fef2f2; }
+        .cal-cell.sun, .cal-cell.sat, .cal-cell.holiday { background: #fef2f2; }
         .cal-day { font-size: 0.8em; font-weight: 600; color: #374151; }
-        .cal-cell.sun .cal-day, .cal-cell.sat .cal-day { color: #ef4444; }
+        .cal-cell.sun .cal-day, .cal-cell.sat .cal-day, .cal-cell.holiday .cal-day { color: #ef4444; }
         .cal-chip {
             font-size: 0.62em;
             font-weight: 700;
@@ -303,6 +309,19 @@
         }
     };
 
+    // ИСКЛЮЧЕНИЯ-ДИАПАЗОНЫ: действуют на все дни внутри периода
+    const rangeExceptions = [
+        { subj: "Неврология", start: "02.11", end: "06.11",
+          location: "Больница Святителя Луки — Чугунная ул., 46",
+          timeInfo: "🕘 Начало в 9:30" },
+        { subj: "Неврология", start: "09.11", end: "13.11",
+          location: "КДЦ — ул. А. Матросова, 22",
+          timeInfo: "🕘 Начало в 9:30" }
+    ];
+
+    // ДОПОЛНИТЕЛЬНЫЕ ПРАЗДНИЧНЫЕ ВЫХОДНЫЕ (помимо сб/вс и новогодних)
+    const extraDaysOff = ["04.11"]; // 4 ноября — День народного единства
+
     // Сокращения и цвета для календаря
     const subjShort = {
         "Урология": "УРОЛ",
@@ -402,6 +421,10 @@
         if (isHoliday(date)) {
             return [];
         }
+        // ДОПОЛНИТЕЛЬНЫЕ ПРАЗДНИЧНЫЕ ВЫХОДНЫЕ (напр., 4 ноября)
+        if (extraDaysOff.includes(fmtShort(date))) {
+            return [];
+        }
         let lectures = [];
         let practicals = [];
         scheduleData.forEach(e => {
@@ -434,9 +457,20 @@
         if (date && e.type === 'Практика') {
             const ex = exceptions[fmtShort(date)];
             if (ex && ex.subj === e.title) {
+                // одиночное исключение (конкретный день)
                 if (ex.location) location = ex.location;
                 if (ex.timeInfo) timeInfo = ex.timeInfo;
                 if (ex.note) note = ex.note;
+            } else {
+                // исключение-диапазон (период дней)
+                for (const r of rangeExceptions) {
+                    if (r.subj === e.title && date >= parseDate(r.start) && date <= parseDate(r.end)) {
+                        if (r.location) location = r.location;
+                        if (r.timeInfo) timeInfo = r.timeInfo;
+                        if (r.note) note = r.note;
+                        break;
+                    }
+                }
             }
         }
 
@@ -468,6 +502,7 @@
 
     function emptyMessage(date) {
         if (isHoliday(date)) return 'Новогодние праздники — занятий нет 🎄';
+        if (extraDaysOff.includes(fmtShort(date))) return '4 ноября — праздничный выходной 🎉';
         if (date.getDay() === 6) return 'Суббота — выходной 🎉';
         if (date.getDay() === 0) return 'Воскресенье — выходной 🎉';
         return 'Занятий нет 🎉';
@@ -520,6 +555,16 @@
             if (dayEvents.length > 0) {
                 hasEvents = true;
                 container.appendChild(renderDayCard(d, dayEvents));
+            } else if (isHoliday(d) || extraDaysOff.includes(fmtShort(d))) {
+                // Праздничные дни показываем отдельной карточкой,
+                // чтобы день не "пропадал" из недели (например, 4 ноября)
+                hasEvents = true;
+                const card = renderDayCard(d, []);
+                const msg = document.createElement('div');
+                msg.className = 'day-off';
+                msg.innerText = emptyMessage(d);
+                card.appendChild(msg);
+                container.appendChild(card);
             }
         }
 
@@ -575,6 +620,7 @@
             cell.className = 'cal-cell';
             if (date.getDay() === 0) cell.classList.add('sun');
             if (date.getDay() === 6) cell.classList.add('sat');
+            if (extraDaysOff.includes(fmtShort(date))) cell.classList.add('holiday');
 
             const dayNum = document.createElement('div');
             dayNum.className = 'cal-day';
@@ -638,7 +684,7 @@
         legendHtml += '<div class="legend-item"><span class="cal-lec"></span> Лекция (сколько точек — столько лекций)</div>';
         legendHtml += '<div class="legend-item">❗ Особое время или место — нажмите на день, чтобы посмотреть</div>';
         legendHtml += '<div class="legend-item">🎄 Новогодние праздники</div>';
-        legendHtml += '<div class="legend-item" style="color:#ef4444;">Суббота и воскресенье — выходные</div>';
+        legendHtml += '<div class="legend-item" style="color:#ef4444;">Суббота, воскресенье и 4 ноября — выходные</div>';
         legendHtml += '<div class="legend-hint">Нажмите на любой день, чтобы открыть подробное расписание</div>';
         legend.innerHTML = legendHtml;
         container.appendChild(legend);
